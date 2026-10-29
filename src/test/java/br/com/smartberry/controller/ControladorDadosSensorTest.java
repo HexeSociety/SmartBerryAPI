@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
-@WebMvcTest(ControladorDadosSensor.class)
+@WebMvcTest(br.com.smartberry.controlador.ControladorDadosSensor.class)
 class ControladorDadosSensorTest{
 
     @Autowired
@@ -37,7 +37,7 @@ class ControladorDadosSensorTest{
         DadosRecebidos.setUmidade(55.5);
 
         DadosSensor dadosSalvos = new DadosSensor();
-        dadosSalvos.setId("12345abcde")
+        dadosSalvos.setId("12345abcde");
         dadosSalvos.setTemperatura(26.0);
         dadosSalvos.setUmidade(55.5);
 
