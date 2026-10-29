@@ -1,9 +1,7 @@
-// src/main/java/br/com/smartberry/controlador/ControladorDadosSensor.java
+package br.com.smartberry.controller;
 
-package br.com.smartberry.controlador;
-
-import br.com.smartberry.modelo.DadosSensor;
-import br.com.smartberry.servico.ServicoDadosSensor;
+import br.com.smartberry.model.DadosSensor;
+import br.com.smartberry.service.ServicoDadosSensor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
