@@ -1,24 +1,24 @@
-package br.com.smartberry.controlador;
+package br.com.smartberry.controller;
 
-import br.com.smartberry.modelo.DadosSensor;
-import br.com.smartberry.servico.ServicoDadosSensor;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import br.com.smartberry.model.DadosSensor;
+import br.com.smartberry.service.ServicoDadosSensor;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ControladorDadosSensor.class)
-class ControladorDadosSensorTest{
+class ControladorDadosSensorTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -26,26 +26,28 @@ class ControladorDadosSensorTest{
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private ServicoDadosSensor servicoDadosSensor;
 
     @Test
     @DisplayName("Deve receber POST do ESP32 e retornar 201 Created")
     void deveReceberDadosDoEsp32ComSucesso() throws Exception {
+        // Arrange
         DadosSensor dadosRecebidos = new DadosSensor();
-        DadosRecebidos.setTemperatura(26.0);
-        DadosRecebidos.setUmidade(55.5);
+        dadosRecebidos.setTemperatura(26.0); // Corrigido de DadosRecebidos para dadosRecebidos
+        dadosRecebidos.setUmidade(55.5);     // Corrigido de DadosRecebidos para dadosRecebidos
 
         DadosSensor dadosSalvos = new DadosSensor();
-        dadosSalvos.setId("12345abcde")
+        dadosSalvos.setId("12345abcde");
         dadosSalvos.setTemperatura(26.0);
         dadosSalvos.setUmidade(55.5);
 
         when(servicoDadosSensor.salvarDados(any(DadosSensor.class))).thenReturn(dadosSalvos);
 
+        // Act & Assert
         mockMvc.perform(post("/api/sensores")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(dadosRecebidos)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dadosRecebidos)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("12345abcde"))
                 .andExpect(jsonPath("$.temperatura").value(26.0))
