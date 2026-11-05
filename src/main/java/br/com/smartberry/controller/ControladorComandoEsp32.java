@@ -31,4 +31,13 @@ public class ControladorComandoEsp32 {
     public ResponseEntity<String> tratarArgumentoInvalido(IllegalArgumentException excecao) {
         return ResponseEntity.badRequest().body(excecao.getMessage());
     }
+
+    @PatchMapping("/{id}/executado")
+    public ResponseEntity<ComandoEsp32> marcarComoExecutado(
+            @PathVariable String id) {
+
+        ComandoEsp32 comando = servicoComandoEsp32.marcarComoExecutado(id);
+
+        return ResponseEntity.ok(comando);
+    }
 }
