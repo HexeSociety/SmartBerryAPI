@@ -6,6 +6,8 @@ import br.com.smartberry.model.TipoComando;
 import br.com.smartberry.repository.RepositorioComandoEsp32;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,6 +29,19 @@ public class ServicoComandoEsp32 {
 
     public List<ComandoEsp32> listarPendentes() {
         return repositorioComandoEsp32.findByStatus(StatusComando.PENDENTE);
+    }
+
+    public ComandoEsp32 marcarComoExecutado(String id) {
+
+    ComandoEsp32 comando = repositorioComandoEsp32.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(
+        HttpStatus.NOT_FOUND,
+        "Comando não encontrado"
+));
+
+    comando.setStatus(StatusComando.EXECUTADO);
+
+    return repositorioComandoEsp32.save(comando);
     }
 
     private void validarComando(ComandoEsp32 comando) {
