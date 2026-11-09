@@ -12,10 +12,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class ServicoComandoEsp32Test {
@@ -143,5 +148,71 @@ class ServicoComandoEsp32Test {
 
         assertEquals(1, resultado.size());
         assertEquals(StatusComando.PENDENTE, resultado.get(0).getStatus());
+    }
+
+    @Test
+    @DisplayName("Deve marcar comando pendente como executado e salvar")
+    void deveMarcarComandoPendenteComoExecutado() {
+        ComandoEsp32 comando = criarComandoDe(TipoComando.ACIONAR_IRRIGACAO, 30);
+        comando.setId("cmd123");
+        comando.setStatus(StatusComando.PENDENTE);
+
+        when(repositorioComandoEsp32.findById("cmd123")).thenReturn(Optional.of(comando));
+        when(repositorioComandoEsp32.save(any(ComandoEsp32.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        ComandoEsp32 resultado = servicoComandoEsp32.marcarComoExecutado("cmd123");
+
+        assertEquals(StatusComando.EXECUTADO, resultado.getStatus());
+        verify(repositorioComandoEsp32).save(comando);
+    }
+
+    @Test
+    @DisplayName("Deve manter os demais campos ao marcar como executado")
+    void deveManterDemaisCamposAoMarcarComoExecutado() {
+        LocalDateTime dataCriacao = LocalDateTime.of(2026, 11, 5, 10, 0);
+        ComandoEsp32 comando = criarComandoDe(TipoComando.ACIONAR_IRRIGACAO, 30);
+        comando.setId("cmd123");
+        comando.setStatus(StatusComando.PENDENTE);
+        comando.setDataCriacao(dataCriacao);
+
+        when(repositorioComandoEsp32.findById("cmd123")).thenReturn(Optional.of(comando));
+        when(repositorioComandoEsp32.save(any(ComandoEsp32.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        ComandoEsp32 resultado = servicoComandoEsp32.marcarComoExecutado("cmd123");
+
+        assertEquals("cmd123", resultado.getId());
+        assertEquals(TipoComando.ACIONAR_IRRIGACAO, resultado.getTipo());
+        assertEquals(30, resultado.getValor());
+        assertEquals(dataCriacao, resultado.getDataCriacao());
+    }
+
+    @Test
+    @DisplayName("Deve lançar 404 quando o comando não existe")
+    void deveLancarNaoEncontradoQuandoComandoNaoExiste() {
+        when(repositorioComandoEsp32.findById("inexistente")).thenReturn(Optional.empty());
+
+        ResponseStatusException excecao = assertThrows(ResponseStatusException.class,
+                () -> servicoComandoEsp32.marcarComoExecutado("inexistente"));
+
+        assertEquals(HttpStatus.NOT_FOUND.value(), excecao.getStatusCode().value());
+        verify(repositorioComandoEsp32, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve manter o status EXECUTADO quando o comando já foi executado")
+    void deveManterExecutadoQuandoComandoJaFoiExecutado() {
+        ComandoEsp32 comando = criarComandoDe(TipoComando.PARAR_IRRIGACAO, null);
+        comando.setId("cmd123");
+        comando.setStatus(StatusComando.EXECUTADO);
+
+        when(repositorioComandoEsp32.findById("cmd123")).thenReturn(Optional.of(comando));
+        when(repositorioComandoEsp32.save(any(ComandoEsp32.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        ComandoEsp32 resultado = servicoComandoEsp32.marcarComoExecutado("cmd123");
+
+        assertEquals(StatusComando.EXECUTADO, resultado.getStatus());
     }
 }
