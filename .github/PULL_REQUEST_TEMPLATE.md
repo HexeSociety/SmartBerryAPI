@@ -4,6 +4,7 @@ Descreva brevemente as alterações realizadas.
 
 ## Tipo de alteração
 
+- [ ] Testes
 - [ ] Nova funcionalidade
 - [ ] Correção de bug
 - [ ] Refatoração
