@@ -12,6 +12,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -21,6 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
 @WebMvcTest(ControladorComandoEsp32.class)
 class ControladorComandoEsp32Test {
@@ -88,5 +91,39 @@ class ControladorComandoEsp32Test {
                 .andExpect(jsonPath("$[0].id").value("cmd123"))
                 .andExpect(jsonPath("$[0].tipo").value("ACIONAR_IRRIGACAO"))
                 .andExpect(jsonPath("$[0].status").value("PENDENTE"));
+    }
+
+    @Test
+    @DisplayName("Deve marcar comando como executado e retornar 200")
+    void deveMarcarComandoComoExecutado() throws Exception {
+        ComandoEsp32 executado = new ComandoEsp32();
+        executado.setId("cmd123");
+        executado.setTipo(TipoComando.ACIONAR_IRRIGACAO);
+        executado.setValor(30);
+        executado.setStatus(StatusComando.EXECUTADO);
+
+        when(servicoComandoEsp32.marcarComoExecutado("cmd123")).thenReturn(executado);
+
+        mockMvc.perform(patch("/api/comandos/cmd123/executado"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("cmd123"))
+                .andExpect(jsonPath("$.status").value("EXECUTADO"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar 404 quando o comando não existe")
+    void deveRetornarNaoEncontradoQuandoComandoNaoExiste() throws Exception {
+        when(servicoComandoEsp32.marcarComoExecutado("inexistente"))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Comando não encontrado"));
+
+        mockMvc.perform(patch("/api/comandos/inexistente/executado"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar POST no endpoint de execução com 405")
+    void deveRejeitarMetodoIncorretoNoEndpointDeExecucao() throws Exception {
+        mockMvc.perform(post("/api/comandos/cmd123/executado"))
+                .andExpect(status().isMethodNotAllowed());
     }
 }
