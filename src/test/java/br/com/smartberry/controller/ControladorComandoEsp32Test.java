@@ -24,6 +24,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 
 @WebMvcTest(ControladorComandoEsp32.class)
 class ControladorComandoEsp32Test {
@@ -125,5 +128,108 @@ class ControladorComandoEsp32Test {
     void deveRejeitarMetodoIncorretoNoEndpointDeExecucao() throws Exception {
         mockMvc.perform(post("/api/comandos/cmd123/executado"))
                 .andExpect(status().isMethodNotAllowed());
+    }@Test
+    @DisplayName("Deve retornar 400 quando o tipo de comando não existe")
+    void deveRetornarBadRequestQuandoTipoNaoExiste() throws Exception {
+        mockMvc.perform(post("/api/comandos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tipo\":\"EXPLODIR\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(servicoComandoEsp32, never()).criarComando(any());
     }
+
+    @Test
+    @DisplayName("Deve retornar 400 quando o JSON for malformado")
+    void deveRetornarBadRequestQuandoJsonMalformado() throws Exception {
+        mockMvc.perform(post("/api/comandos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tipo\": \"ACIONAR_IRRIGACAO\", \"valor\":"))
+                .andExpect(status().isBadRequest());
+
+        verify(servicoComandoEsp32, never()).criarComando(any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar 400 quando o corpo estiver vazio")
+    void deveRetornarBadRequestQuandoCorpoVazio() throws Exception {
+        mockMvc.perform(post("/api/comandos")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+
+        verify(servicoComandoEsp32, never()).criarComando(any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar 400 quando o valor não for numérico")
+    void deveRetornarBadRequestQuandoValorNaoForNumerico() throws Exception {
+        mockMvc.perform(post("/api/comandos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tipo\":\"ACIONAR_IRRIGACAO\",\"valor\":\"abc\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(servicoComandoEsp32, never()).criarComando(any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar 415 quando o Content-Type não for JSON")
+    void deveRetornarUnsupportedMediaTypeQuandoContentTypeNaoForJson() throws Exception {
+        mockMvc.perform(post("/api/comandos")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("tipo=ACIONAR_IRRIGACAO"))
+                .andExpect(status().isUnsupportedMediaType());
+
+        verify(servicoComandoEsp32, never()).criarComando(any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar 200 com lista vazia quando não há comandos pendentes")
+    void deveRetornarListaVaziaQuandoNaoHaPendentes() throws Exception {
+        when(servicoComandoEsp32.listarPendentes()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/comandos/pendentes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @DisplayName("Deve listar vários comandos pendentes")
+    void deveListarVariosComandosPendentes() throws Exception {
+        ComandoEsp32 primeiro = new ComandoEsp32();
+        primeiro.setId("cmd1");
+        primeiro.setTipo(TipoComando.ACIONAR_IRRIGACAO);
+        primeiro.setStatus(StatusComando.PENDENTE);
+
+        ComandoEsp32 segundo = new ComandoEsp32();
+        segundo.setId("cmd2");
+        segundo.setTipo(TipoComando.PARAR_IRRIGACAO);
+        segundo.setStatus(StatusComando.PENDENTE);
+
+        when(servicoComandoEsp32.listarPendentes()).thenReturn(List.of(primeiro, segundo));
+
+        mockMvc.perform(get("/api/comandos/pendentes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value("cmd1"))
+                .andExpect(jsonPath("$[1].id").value("cmd2"))
+                .andExpect(jsonPath("$[1].tipo").value("PARAR_IRRIGACAO"));
+    }
+
+    @Test
+    @DisplayName("Deve devolver a mensagem da exceção no corpo do 400")
+    void deveDevolverMensagemDaExcecaoNoCorpoDoBadRequest() throws Exception {
+        ComandoEsp32 requisicao = new ComandoEsp32();
+        requisicao.setTipo(TipoComando.ACIONAR_IRRIGACAO);
+
+        when(servicoComandoEsp32.criarComando(any(ComandoEsp32.class)))
+                .thenThrow(new IllegalArgumentException("Duração obrigatória"));
+
+        mockMvc.perform(post("/api/comandos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requisicao)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("Duração obrigatória"));
+    }
+
+
 }
