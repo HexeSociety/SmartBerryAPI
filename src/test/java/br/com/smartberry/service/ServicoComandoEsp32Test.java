@@ -10,10 +10,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -214,5 +216,112 @@ class ServicoComandoEsp32Test {
         ComandoEsp32 resultado = servicoComandoEsp32.marcarComoExecutado("cmd123");
 
         assertEquals(StatusComando.EXECUTADO, resultado.getStatus());
+    }
+
+    @Test
+    @DisplayName("Deve criar comando de alterar intervalo com valor válido como PENDENTE")
+    void deveCriarAlterarIntervaloComValorValido() {
+        ComandoEsp32 comando = criarComandoDe(TipoComando.ALTERAR_INTERVALO, 60);
+
+        when(repositorioComandoEsp32.save(any(ComandoEsp32.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        ComandoEsp32 resultado = servicoComandoEsp32.criarComando(comando);
+
+        assertEquals(StatusComando.PENDENTE, resultado.getStatus());
+        assertEquals(60, resultado.getValor());
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar intervalo negativo")
+    void deveRejeitarIntervaloNegativo() {
+        ComandoEsp32 comando = criarComandoDe(TipoComando.ALTERAR_INTERVALO, -5);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> servicoComandoEsp32.criarComando(comando));
+        verify(repositorioComandoEsp32, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar irrigação com duração negativa")
+    void deveRejeitarIrrigacaoComDuracaoNegativa() {
+        ComandoEsp32 comando = criarComandoDe(TipoComando.ACIONAR_IRRIGACAO, -1);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> servicoComandoEsp32.criarComando(comando));
+        verify(repositorioComandoEsp32, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve aceitar irrigação com duração de 1 segundo (limite inferior)")
+    void deveAceitarIrrigacaoNoLimiteInferior() {
+        ComandoEsp32 comando = criarComandoDe(TipoComando.ACIONAR_IRRIGACAO, 1);
+
+        when(repositorioComandoEsp32.save(any(ComandoEsp32.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        assertDoesNotThrow(() -> servicoComandoEsp32.criarComando(comando));
+    }
+
+    @Test
+    @DisplayName("Deve forçar status PENDENTE mesmo quando o cliente envia EXECUTADO")
+    void deveForcarStatusPendenteQuandoClienteEnviaExecutado() {
+        ComandoEsp32 comando = criarComandoDe(TipoComando.ACIONAR_IRRIGACAO, 30);
+        comando.setStatus(StatusComando.EXECUTADO);
+
+        when(repositorioComandoEsp32.save(any(ComandoEsp32.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        ComandoEsp32 resultado = servicoComandoEsp32.criarComando(comando);
+
+        assertEquals(StatusComando.PENDENTE, resultado.getStatus());
+    }
+
+    @Test
+    @DisplayName("Deve sobrescrever a data de criação enviada pelo cliente")
+    void deveSobrescreverDataCriacaoEnviadaPeloCliente() {
+        LocalDateTime dataAntiga = LocalDateTime.of(2000, 1, 1, 0, 0);
+        ComandoEsp32 comando = criarComandoDe(TipoComando.ACIONAR_IRRIGACAO, 30);
+        comando.setDataCriacao(dataAntiga);
+
+        when(repositorioComandoEsp32.save(any(ComandoEsp32.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        ComandoEsp32 resultado = servicoComandoEsp32.criarComando(comando);
+
+        assertTrue(resultado.getDataCriacao().isAfter(dataAntiga));
+    }
+
+    @Test
+    @DisplayName("Deve aceitar parar irrigação mesmo com valor preenchido")
+    void deveAceitarPararIrrigacaoComValorPreenchido() {
+        ComandoEsp32 comando = criarComandoDe(TipoComando.PARAR_IRRIGACAO, 99);
+
+        when(repositorioComandoEsp32.save(any(ComandoEsp32.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        assertDoesNotThrow(() -> servicoComandoEsp32.criarComando(comando));
+    }
+
+    @Test
+    @DisplayName("Não deve salvar quando o comando não tem tipo")
+    void naoDeveSalvarQuandoComandoNaoTemTipo() {
+        ComandoEsp32 comando = criarComandoDe(null, 10);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> servicoComandoEsp32.criarComando(comando));
+        verify(repositorioComandoEsp32, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve devolver lista vazia, e não nula, quando não há pendentes")
+    void deveDevolverListaVaziaQuandoNaoHaPendentes() {
+        when(repositorioComandoEsp32.findByStatus(StatusComando.PENDENTE))
+                .thenReturn(List.of());
+
+        List<ComandoEsp32> resultado = servicoComandoEsp32.listarPendentes();
+
+        assertNotNull(resultado);
+        assertTrue(resultado.isEmpty());
     }
 }
