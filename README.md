@@ -219,36 +219,70 @@ A API atualiza o status para `EXECUTADO`, deixando de retornar esse comando na c
 
 ## 🗄️ Banco de dados
 
-O projeto utiliza o **MongoDB**, um banco de dados NoSQL orientado a documentos.
+O projeto utiliza o **MongoDB Atlas**, um banco de dados NoSQL orientado a documentos, para armazenar as informações dos dispositivos ESP32, as leituras dos sensores e os comandos de automação da estufa inteligente.
 
-A persistência é realizada por meio do Spring Data MongoDB, utilizando repositórios que estendem `MongoRepository`.
+A persistência é realizada por meio do **Spring Data MongoDB**, utilizando repositórios que estendem `MongoRepository`, permitindo operações de cadastro, consulta, atualização e exclusão.
 
-Atualmente, a aplicação trabalha com duas coleções principais:
+Atualmente, a aplicação trabalha com três coleções principais:
+
+### Coleção `dispositivos_esp32`
+
+Armazena as informações dos microcontroladores ESP32 cadastrados no sistema, permitindo o gerenciamento individual de cada dispositivo.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `id` | String | Identificador único gerenciado pelo MongoDB. |
+| `codigo` | String | Código de identificação do ESP32. |
+| `nome` | String | Nome atribuído ao dispositivo. |
+| `estufaId` | String | Identificador da estufa associada. |
+| `ativo` | Boolean | Indica se o dispositivo está habilitado. |
+| `excluido` | Boolean | Controla a exclusão lógica do dispositivo. |
+
+O gerenciamento dos dispositivos é realizado por meio de um CRUD REST, com validações para impedir cadastros incompletos e códigos duplicados. A exclusão lógica permite preservar as informações e o histórico associado ao dispositivo.
 
 ### Coleção `dados_sensor`
 
-Armazena as informações recebidas do sensor.
+Armazena as leituras de temperatura e umidade recebidas dos sensores conectados ao ESP32.
 
 | Campo | Tipo | Descrição |
 |---|---|---|
-| `id` | String | Identificador do registro. |
-| `temperatura` | Double | Temperatura registrada. |
-| `umidade` | Double | Umidade registrada. |
-| `dataRegistro` | LocalDateTime | Data e horário de recebimento. |
+| `id` | String | Identificador único da leitura. |
+| `esp32Id` | String | Identificador do dispositivo responsável pela leitura. |
+| `temperatura` | Double | Temperatura registrada em graus Celsius. |
+| `umidade` | Double | Umidade relativa registrada em porcentagem. |
+| `dataRegistro` | LocalDateTime | Data e horário de recebimento da leitura. |
+
+As leituras são vinculadas ao ESP32 cadastrado, permitindo consultas individuais e recuperação do histórico de cada dispositivo.
+
+A API também disponibiliza o processamento dos registros para geração de estatísticas, incluindo temperaturas e umidades mínimas, máximas e médias das últimas 24 horas, além do agrupamento de leituras por hora ou dia para utilização nos gráficos do aplicativo Android.
 
 ### Coleção `comandos_esp32`
 
-Armazena os comandos enviados para o ESP32.
+Armazena os comandos de controle enviados ao sistema para execução pelo ESP32.
 
 | Campo | Tipo | Descrição |
 |---|---|---|
-| `id` | String | Identificador do comando. |
+| `id` | String | Identificador único do comando. |
 | `tipo` | TipoComando | Tipo de ação solicitada. |
-| `valor` | Integer | Parâmetro numérico do comando, quando aplicável. |
-| `status` | StatusComando | Situação atual do comando. |
+| `valor` | Integer | Parâmetro numérico, quando aplicável. |
+| `status` | StatusComando | Estado de execução do comando. |
 | `dataCriacao` | LocalDateTime | Data e horário de criação. |
 
-Os identificadores são gerenciados pelo MongoDB, e as datas são definidas pela camada de serviço da aplicação.
+Os comandos são registrados inicialmente com o status `PENDENTE` e podem ser atualizados para `EXECUTADO` após a confirmação da execução.
+
+A associação individual dos comandos aos dispositivos ESP32 e a ampliação do controle de ventilação fazem parte das próximas etapas de desenvolvimento.
+
+### Integração com MongoDB Atlas
+
+A conexão é configurada no arquivo `application.properties`, utilizando a propriedade:
+
+`spring.mongodb.uri=${MONGODB_URI:mongodb://localhost:27017/smartberry}`
+
+A variável de ambiente `MONGODB_URI` permite utilizar a string de conexão do MongoDB Atlas sem armazenar credenciais diretamente no código-fonte.
+
+O banco de dados utilizado pelo projeto é denominado `smartberry`. Os identificadores dos registros são gerenciados pelo MongoDB, enquanto as datas de criação e recebimento são definidas pela camada de serviço da aplicação.
+
+A integração foi validada com o cadastro de dispositivos, armazenamento de leituras simuladas, recuperação do histórico e processamento das informações de monitoramento por meio dos endpoints REST.
 
 ## 🌐 Endpoints da API
 
