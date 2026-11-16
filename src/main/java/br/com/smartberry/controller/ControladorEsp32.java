@@ -1,4 +1,4 @@
-gitpackage br.com.smartberry.controller;
+package br.com.smartberry.controller;
 
 import br.com.smartberry.model.DispositivoEsp32;
 import br.com.smartberry.service.ServicoEsp32;
