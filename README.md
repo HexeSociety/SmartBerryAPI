@@ -219,36 +219,70 @@ A API atualiza o status para `EXECUTADO`, deixando de retornar esse comando na c
 
 ## 🗄️ Banco de dados
 
-O projeto utiliza o **MongoDB**, um banco de dados NoSQL orientado a documentos.
+O projeto utiliza o **MongoDB Atlas**, um banco de dados NoSQL orientado a documentos, para armazenar as informações dos dispositivos ESP32, as leituras dos sensores e os comandos de automação da estufa inteligente.
 
-A persistência é realizada por meio do Spring Data MongoDB, utilizando repositórios que estendem `MongoRepository`.
+A persistência é realizada por meio do **Spring Data MongoDB**, utilizando repositórios que estendem `MongoRepository`, permitindo operações de cadastro, consulta, atualização e exclusão.
 
-Atualmente, a aplicação trabalha com duas coleções principais:
+Atualmente, a aplicação trabalha com três coleções principais:
+
+### Coleção `dispositivos_esp32`
+
+Armazena as informações dos microcontroladores ESP32 cadastrados no sistema, permitindo o gerenciamento individual de cada dispositivo.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `id` | String | Identificador único gerenciado pelo MongoDB. |
+| `codigo` | String | Código de identificação do ESP32. |
+| `nome` | String | Nome atribuído ao dispositivo. |
+| `estufaId` | String | Identificador da estufa associada. |
+| `ativo` | Boolean | Indica se o dispositivo está habilitado. |
+| `excluido` | Boolean | Controla a exclusão lógica do dispositivo. |
+
+O gerenciamento dos dispositivos é realizado por meio de um CRUD REST, com validações para impedir cadastros incompletos e códigos duplicados. A exclusão lógica permite preservar as informações e o histórico associado ao dispositivo.
 
 ### Coleção `dados_sensor`
 
-Armazena as informações recebidas do sensor.
+Armazena as leituras de temperatura e umidade recebidas dos sensores conectados ao ESP32.
 
 | Campo | Tipo | Descrição |
 |---|---|---|
-| `id` | String | Identificador do registro. |
-| `temperatura` | Double | Temperatura registrada. |
-| `umidade` | Double | Umidade registrada. |
-| `dataRegistro` | LocalDateTime | Data e horário de recebimento. |
+| `id` | String | Identificador único da leitura. |
+| `esp32Id` | String | Identificador do dispositivo responsável pela leitura. |
+| `temperatura` | Double | Temperatura registrada em graus Celsius. |
+| `umidade` | Double | Umidade relativa registrada em porcentagem. |
+| `dataRegistro` | LocalDateTime | Data e horário de recebimento da leitura. |
+
+As leituras são vinculadas ao ESP32 cadastrado, permitindo consultas individuais e recuperação do histórico de cada dispositivo.
+
+A API também disponibiliza o processamento dos registros para geração de estatísticas, incluindo temperaturas e umidades mínimas, máximas e médias das últimas 24 horas, além do agrupamento de leituras por hora ou dia para utilização nos gráficos do aplicativo Android.
 
 ### Coleção `comandos_esp32`
 
-Armazena os comandos enviados para o ESP32.
+Armazena os comandos de controle enviados ao sistema para execução pelo ESP32.
 
 | Campo | Tipo | Descrição |
 |---|---|---|
-| `id` | String | Identificador do comando. |
+| `id` | String | Identificador único do comando. |
 | `tipo` | TipoComando | Tipo de ação solicitada. |
-| `valor` | Integer | Parâmetro numérico do comando, quando aplicável. |
-| `status` | StatusComando | Situação atual do comando. |
+| `valor` | Integer | Parâmetro numérico, quando aplicável. |
+| `status` | StatusComando | Estado de execução do comando. |
 | `dataCriacao` | LocalDateTime | Data e horário de criação. |
 
-Os identificadores são gerenciados pelo MongoDB, e as datas são definidas pela camada de serviço da aplicação.
+Os comandos são registrados inicialmente com o status `PENDENTE` e podem ser atualizados para `EXECUTADO` após a confirmação da execução.
+
+A associação individual dos comandos aos dispositivos ESP32 e a ampliação do controle de ventilação fazem parte das próximas etapas de desenvolvimento.
+
+### Integração com MongoDB Atlas
+
+A conexão é configurada no arquivo `application.properties`, utilizando a propriedade:
+
+`spring.mongodb.uri=${MONGODB_URI:mongodb://localhost:27017/smartberry}`
+
+A variável de ambiente `MONGODB_URI` permite utilizar a string de conexão do MongoDB Atlas sem armazenar credenciais diretamente no código-fonte.
+
+O banco de dados utilizado pelo projeto é denominado `smartberry`. Os identificadores dos registros são gerenciados pelo MongoDB, enquanto as datas de criação e recebimento são definidas pela camada de serviço da aplicação.
+
+A integração foi validada com o cadastro de dispositivos, armazenamento de leituras simuladas, recuperação do histórico e processamento das informações de monitoramento por meio dos endpoints REST.
 
 ## 🌐 Endpoints da API
 
@@ -595,6 +629,164 @@ Alguns pontos permanecem como evolução da solução:
 - **Evolução do monitoramento:** ampliação dos recursos de consulta e utilização histórica das leituras ambientais.
 
 Esses itens não devem ser considerados funcionalidades já disponíveis nesta versão.
+
+## 🆕 Implementações — Integração ESP32, MongoDB e Monitoramento
+
+Esta etapa do desenvolvimento expandiu a API SmartBerry 360 para permitir o gerenciamento de dispositivos ESP32, a identificação das leituras de sensores e a disponibilização de informações tratadas para o aplicativo Android.
+
+### Gerenciamento de dispositivos ESP32
+
+Foi implementado um CRUD completo para os dispositivos ESP32, utilizando a arquitetura em camadas do Spring Boot.
+
+As funcionalidades incluem:
+
+- Cadastro de novos dispositivos com código, nome e identificação da estufa.
+- Consulta de todos os dispositivos cadastrados e busca individual por ID.
+- Atualização das informações e do estado ativo do dispositivo.
+- Exclusão lógica, preservando os registros existentes no MongoDB.
+- Validação de campos obrigatórios e verificação de códigos duplicados pela aplicação.
+
+**Arquivos implementados:**
+
+| Camada | Arquivo |
+|---|---|
+| Model | `DispositivoEsp32.java` |
+| Repository | `RepositorioEsp32.java` |
+| Service | `ServicoEsp32.java` |
+| Controller | `ControladorEsp32.java` |
+
+**Endpoints disponíveis:**
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/api/esp32` | Cadastrar dispositivo |
+| GET | `/api/esp32` | Listar dispositivos |
+| GET | `/api/esp32/{id}` | Consultar dispositivo |
+| PUT | `/api/esp32/{id}` | Atualizar dispositivo |
+| DELETE | `/api/esp32/{id}` | Realizar exclusão lógica |
+
+Exemplo de cadastro:
+
+```json
+{
+  "codigo": "ESP32-01",
+  "nome": "ESP32 Principal",
+  "estufaId": "estufa-teste"
+}
+```
+
+### Integração dos sensores ao ESP32
+
+A estrutura de armazenamento das leituras foi ampliada com o campo `esp32Id`, permitindo associar cada registro ao dispositivo responsável pelo envio.
+
+O serviço de sensores passou a validar a existência e o estado ativo do dispositivo, a presença dos valores de temperatura e umidade e o intervalo válido de umidade, entre 0% e 100%.
+
+Também foram implementadas consultas para recuperar a última leitura e o histórico individual de cada dispositivo.
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/api/sensores/esp32/{esp32Id}` | Registrar leitura |
+| GET | `/api/sensores/esp32/{esp32Id}/ultima` | Consultar última leitura |
+| GET | `/api/sensores/esp32/{esp32Id}/historico?limite=50` | Consultar histórico bruto |
+
+O endpoint original `POST /api/sensores` foi preservado temporariamente para manter compatibilidade com a implementação anterior.
+
+Exemplo de envio:
+
+```json
+{
+  "temperatura": 26.5,
+  "umidade": 72.0
+}
+```
+
+O identificador do dispositivo é informado na URL, enquanto a data de recebimento é registrada automaticamente pela API.
+
+### Dashboard e processamento de dados
+
+Foi implementada uma camada de monitoramento responsável por consultar os registros armazenados no MongoDB e preparar informações para consumo pelo aplicativo Android.
+
+A API disponibiliza:
+
+- Temperatura e umidade da última leitura.
+- Valores mínimos, máximos e médios das últimas 24 horas.
+- Quantidade de leituras registradas no período.
+- Data e horário da última leitura.
+- Status estimado de atividade do dispositivo.
+- Médias agrupadas por hora para construção de gráficos.
+- Médias agrupadas por dia para consulta do histórico.
+
+A implementação utiliza os DTOs `ResumoMonitoramento` e `PontoGrafico`, o serviço `ServicoMonitoramento` e o controlador `ControladorMonitoramento`.
+
+**Endpoints de monitoramento:**
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/api/monitoramento/{esp32Id}/atual` | Dados do dashboard e estatísticas das últimas 24h |
+| GET | `/api/monitoramento/{esp32Id}/grafico?horas=24` | Gráfico com médias por hora |
+| GET | `/api/monitoramento/{esp32Id}/historico?dias=7` | Histórico com médias por dia |
+
+O gráfico aceita períodos de 1 a 168 horas, enquanto o histórico diário aceita de 1 a 30 dias.
+
+O status `online` é estimado com base no recebimento de leituras nos últimos três minutos. Não corresponde a uma verificação direta da conexão de rede do ESP32.
+
+### Persistência no MongoDB Atlas
+
+A conexão com o MongoDB foi validada utilizando o MongoDB Atlas e o Spring Data MongoDB.
+
+As coleções utilizadas nesta etapa são:
+
+| Coleção | Finalidade |
+|---|---|
+| `dispositivos_esp32` | Cadastro, identificação e estado dos dispositivos |
+| `dados_sensor` | Leituras ambientais vinculadas ao ESP32 |
+| `comandos_esp32` | Registro de comandos da implementação original |
+
+O campo `estufaId` identifica a estufa associada ao dispositivo, mas a validação contra uma coleção de estufas cadastradas ainda está pendente.
+
+A configuração de conexão utiliza a variável de ambiente `MONGODB_URI`, evitando armazenar credenciais no código-fonte.
+
+```properties
+spring.mongodb.uri=${MONGODB_URI:mongodb://localhost:27017/smartberry}
+```
+
+Para utilizar o Atlas, deve-se definir `MONGODB_URI` com a string de conexão do cluster, incluindo o banco `smartberry`.
+
+### Testes realizados
+
+As novas funcionalidades foram verificadas por meio de requisições HTTP utilizando o PowerShell.
+
+Foram realizados com sucesso:
+
+- Cadastro e consulta de um dispositivo ESP32.
+- Envio de cinco leituras simuladas de temperatura e umidade.
+- Persistência das leituras associadas ao mesmo dispositivo.
+- Recuperação da última leitura registrada.
+- Consulta do histórico em ordem cronológica decrescente.
+- Cálculo das estatísticas do dashboard.
+- Consulta dos gráficos agrupados por hora e do histórico diário.
+
+Também foi adicionado `ServicoMonitoramentoTest.java`, utilizando JUnit 5 e Mockito para testar os cálculos do monitoramento sem depender de um banco real.
+
+Para executar os testes automatizados:
+
+```powershell
+.\mvnw.cmd clean test
+```
+
+Para iniciar a API pelo Maven Wrapper no Windows:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+**Observação:** os testes de comunicação foram realizados com dados simulados. A integração com o ESP32 físico e o consumo pelo aplicativo Android ainda precisam ser validados.
+
+### Próximas implementações
+
+As próximas etapas previstas são a associação dos comandos de irrigação e ventilação aos dispositivos ESP32, o cadastro de estufas, a integração com o firmware e o consumo dos endpoints pelo aplicativo Android.
+
+Também estão previstas melhorias de segurança, autenticação, autorização, índices de banco de dados e ampliação da cobertura dos testes automatizados.
 
 ## 👥 Equipe e desenvolvimento
 

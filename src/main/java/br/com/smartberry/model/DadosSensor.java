@@ -11,8 +11,9 @@ public class DadosSensor {
 
     @Id
     private String id;
+
+    private String esp32Id;
     private Double temperatura;
     private Double umidade;
     private LocalDateTime dataRegistro;
-
 }
