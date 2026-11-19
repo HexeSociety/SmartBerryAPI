@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Chave IoT ###
+http-client.private.env.json
