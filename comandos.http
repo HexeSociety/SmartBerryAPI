@@ -1,0 +1,57 @@
+@baseUrl = http://localhost:8080
+@esp32Id = 6afa730a3646abe5c575a606
+
+### 1 - Consultar comandos sem chave (401)
+GET {{baseUrl}}/api/comandos/pendentes
+
+### 2 - Consultar com chave errada (401)
+GET {{baseUrl}}/api/comandos/pendentes
+X-IoT-Key: chave-invalida
+
+### 3 - Consultar com chave correta (200)
+GET {{baseUrl}}/api/comandos/pendentes
+X-IoT-Key: {{iotApiKey}}
+
+### 4 - Tentar criar usando apenas chave IoT (401)
+POST {{baseUrl}}/api/comandos
+Content-Type: application/json
+X-IoT-Key: {{iotApiKey}}
+
+{"tipo":"PARAR_IRRIGACAO"}
+
+### 5 - Criar comando de parada com Firebase (201)
+POST {{baseUrl}}/api/comandos
+Authorization: Bearer {{firebaseIdToken}}
+Content-Type: application/json
+
+{"esp32Id":"{{esp32Id}}","tipo":"PARAR_IRRIGACAO"}
+
+> {%
+  if (response.status === 201) client.global.set("comandoId", response.body.id);
+%}
+
+### 6 - Consultar comando criado (200; executar em ate 120s)
+GET {{baseUrl}}/api/comandos/pendentes
+X-IoT-Key: {{iotApiKey}}
+
+### 7 - Tentar confirmar sem chave (401)
+PATCH {{baseUrl}}/api/comandos/{{comandoId}}/executado
+
+### 8 - Simular confirmacao no dispositivo (200)
+PATCH {{baseUrl}}/api/comandos/{{comandoId}}/executado
+X-IoT-Key: {{iotApiKey}}
+
+### 9 - Repetir confirmacao (200; mesma dataFinalizacao)
+PATCH {{baseUrl}}/api/comandos/{{comandoId}}/executado
+X-IoT-Key: {{iotApiKey}}
+
+### 10 - Consultar fila apos confirmacao (200; sem o comando anterior)
+GET {{baseUrl}}/api/comandos/pendentes
+X-IoT-Key: {{iotApiKey}}
+
+### 11 - Irrigacao invalida, acima de 300 segundos (400)
+POST {{baseUrl}}/api/comandos
+Authorization: Bearer {{firebaseIdToken}}
+Content-Type: application/json
+
+{"esp32Id":"{{esp32Id}}","tipo":"ACIONAR_IRRIGACAO","valor":301}

@@ -87,3 +87,7 @@ X-IoT-Key: {{iotApiKey}}
 
 ### Teste 5 - Consultar dashboard sem token Firebase
 GET {{baseUrl}}/api/monitoramento/{{esp32Id}}/atual
+
+
+### Consultar comandos pendentes
+GET {{baseUrl}}/api/comandos/pendentes
