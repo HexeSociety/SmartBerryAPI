@@ -1,0 +1,89 @@
+
+@baseUrl = http://localhost:8080
+@esp32Id = 6afa730a3646abe5c575a606
+
+### Listar dispositivos ESP32
+GET {{baseUrl}}/api/esp32
+
+### Consultar ESP32 por ID
+GET {{baseUrl}}/api/esp32/{{esp32Id}}
+
+### Cadastrar ESP32
+POST {{baseUrl}}/api/esp32
+Content-Type: application/json
+
+{
+  "codigo": "ESP32-02",
+  "nome": "ESP32 Secundario",
+  "estufaId": "estufa-teste"
+}
+
+### Enviar leitura de temperatura e umidade
+POST {{baseUrl}}/api/sensores/esp32/{{esp32Id}}
+Content-Type: application/json
+
+{
+  "temperatura": 28.5,
+  "umidade": 74.2
+}
+
+### Consultar ultima leitura
+GET {{baseUrl}}/api/sensores/esp32/{{esp32Id}}/ultima
+
+### Consultar historico de leituras
+GET {{baseUrl}}/api/sensores/esp32/{{esp32Id}}/historico?limite=20
+
+### Consultar dashboard
+GET {{baseUrl}}/api/monitoramento/{{esp32Id}}/atual
+
+### Consultar grafico de 24 horas
+GET {{baseUrl}}/api/monitoramento/{{esp32Id}}/grafico?horas=24
+
+### Consultar historico de 7 dias
+GET {{baseUrl}}/api/monitoramento/{{esp32Id}}/historico?dias=7
+
+### Consultar historico de 30 dias
+GET {{baseUrl}}/api/monitoramento/{{esp32Id}}/historico?dias=30
+
+
+### Teste 1 - Enviar leitura autenticada do ESP32
+POST {{baseUrl}}/api/sensores/esp32/{{esp32Id}}
+Content-Type: application/json
+X-IoT-Key: {{iotApiKey}}
+
+{
+  "temperatura": 27.5,
+  "umidade": 65.0
+}
+
+### Teste 2 - Enviar leitura sem autenticacao
+POST {{baseUrl}}/api/sensores/esp32/{{esp32Id}}
+Content-Type: application/json
+
+{
+  "temperatura": 28.0,
+  "umidade": 70.0
+}
+
+### Teste 3 - Enviar leitura com chave incorreta
+POST {{baseUrl}}/api/sensores/esp32/{{esp32Id}}
+Content-Type: application/json
+X-IoT-Key: chave-invalida
+
+{
+  "temperatura": 29.0,
+  "umidade": 75.0
+}
+
+### Teste 4 - Enviar leitura para dispositivo nao autorizado
+POST {{baseUrl}}/api/sensores/esp32/000000000000000000000001
+Content-Type: application/json
+X-IoT-Key: {{iotApiKey}}
+
+{
+  "temperatura": 30.0,
+  "umidade": 80.0
+}
+
+### Teste 5 - Consultar dashboard sem token Firebase
+GET {{baseUrl}}/api/monitoramento/{{esp32Id}}/atual
