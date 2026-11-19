@@ -33,32 +33,35 @@ import java.util.List;
 @Slf4j
 public class SecurityConfig {
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String DEV_HEADER = "X-Dev-Key";
     private static final String IOT_HEADER = "X-IoT-Key";
-    private static final String IOT_AUTHORITY = "IOT_TELEMETRIA";
+    private static final String IOT_AUTHORITY = "IOT_DISPOSITIVO";
     private static final String IOT_PREFIX = "/api/sensores/esp32/";
 
     static class FirebaseAuthFilter extends OncePerRequestFilter {
         private final String iotDeviceId;
         private final String iotApiKey;
+        private final String devCommandKey;
 
-        FirebaseAuthFilter(String iotDeviceId, String iotApiKey) {
+        FirebaseAuthFilter(String iotDeviceId, String iotApiKey, String devCommandKey) {
             this.iotDeviceId = iotDeviceId;
             this.iotApiKey = iotApiKey;
+            this.devCommandKey = devCommandKey;
         }
 
-        // Rota de telemetria identificada: autenticação exclusiva do dispositivo.
+        // Telemetria, consulta e confirmação dos comandos: chave IoT.
         private boolean isIoTRequest(HttpServletRequest request) {
-            return HttpMethod.POST.name().equals(request.getMethod())
-                    && request.getRequestURI().matches("/api/sensores/esp32/[^/]+");
-        }
-
-        // Compatibilidade temporária com as rotas públicas originais.
-        private boolean isPublic(HttpServletRequest request) {
             String method = request.getMethod();
             String uri = request.getRequestURI();
-            return (HttpMethod.POST.name().equals(method) && "/api/sensores".equals(uri))
+            return (HttpMethod.POST.name().equals(method) && uri.matches("/api/sensores/esp32/[^/]+"))
                     || (HttpMethod.GET.name().equals(method) && "/api/comandos/pendentes".equals(uri))
-                    || (HttpMethod.PATCH.name().equals(method) && uri.matches("/api/comandos/[^/]+/executado"));
+                    || (HttpMethod.PATCH.name().equals(method) && uri.matches("/api/comandos/[^/]+/(executado|falhou)"));
+        }
+
+        // Compatibilidade com a rota antiga de sensores sem vínculo ao dispositivo.
+        private boolean isPublic(HttpServletRequest request) {
+            return HttpMethod.POST.name().equals(request.getMethod())
+                    && "/api/sensores".equals(request.getRequestURI());
         }
 
         private boolean isApiRequest(HttpServletRequest request) {
@@ -80,8 +83,9 @@ public class SecurityConfig {
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or missing IoT key");
                 return;
             }
-            String requestedId = request.getRequestURI().substring(IOT_PREFIX.length());
-            if (!iotDeviceId.equals(requestedId)) {
+            String uri = request.getRequestURI();
+            if (uri.startsWith(IOT_PREFIX)
+                    && !iotDeviceId.equals(uri.substring(IOT_PREFIX.length()))) {
                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "IoT device not authorized for this ID");
                 return;
             }
@@ -89,6 +93,26 @@ public class SecurityConfig {
                     iotDeviceId, null, List.of(new SimpleGrantedAuthority(IOT_AUTHORITY)));
             SecurityContextHolder.getContext().setAuthentication(authentication);
             filterChain.doFilter(request, response);
+        }
+
+        // Excecao temporaria para testes locais, desativada por padrao.
+        // Nunca aceita a chave IoT como credencial de desenvolvimento.
+        private boolean isLocalDevCommand(HttpServletRequest request) {
+            if (!StringUtils.hasText(devCommandKey)
+                    || (StringUtils.hasText(iotApiKey) && devCommandKey.equals(iotApiKey))
+                    || !HttpMethod.POST.name().equals(request.getMethod())
+                    || !"/api/comandos".equals(request.getRequestURI())
+                    || StringUtils.hasText(request.getHeader(HttpHeaders.AUTHORIZATION))) {
+                return false;
+            }
+            String remote = request.getRemoteAddr();
+            boolean loopback = "127.0.0.1".equals(remote)
+                    || "::1".equals(remote)
+                    || "0:0:0:0:0:0:0:1".equals(remote);
+            String provided = request.getHeader(DEV_HEADER);
+            return loopback && provided != null && MessageDigest.isEqual(
+                    devCommandKey.getBytes(StandardCharsets.UTF_8),
+                    provided.getBytes(StandardCharsets.UTF_8));
         }
 
         @Override
@@ -104,6 +128,15 @@ public class SecurityConfig {
                 return;
             }
             if (isPublic(request)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            if (isLocalDevCommand(request)) {
+                var authentication = new UsernamePasswordAuthenticationToken(
+                        "smartberry-dev-local", null,
+                        List.of(new SimpleGrantedAuthority("DEV_COMANDOS")));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -137,18 +170,22 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-                                           @Value("${SMARTBERRY_IOT_DEVICE_ID:}") String iotDeviceId,
-                                           @Value("${SMARTBERRY_IOT_API_KEY:}") String iotApiKey) throws Exception {
+            @Value("${SMARTBERRY_IOT_DEVICE_ID:}") String iotDeviceId,
+            @Value("${SMARTBERRY_IOT_API_KEY:}") String iotApiKey,
+            @Value("${SMARTBERRY_DEV_COMMAND_KEY:}") String devCommandKey) throws Exception {
+        if (StringUtils.hasText(devCommandKey)) {
+            log.warn("Chave de desenvolvimento configurada. Use somente em testes locais.");
+        }
         http.csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(eh -> eh.authenticationEntryPoint(authenticationEntryPoint()))
-                .addFilterBefore(new FirebaseAuthFilter(iotDeviceId, iotApiKey),
+                .addFilterBefore(new FirebaseAuthFilter(iotDeviceId, iotApiKey, devCommandKey),
                         UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/sensores/esp32/*").hasAuthority(IOT_AUTHORITY)
                         .requestMatchers(HttpMethod.POST, "/api/sensores").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/comandos/pendentes").permitAll()
-                        .requestMatchers(HttpMethod.PATCH, "/api/comandos/*/executado").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/comandos/pendentes").hasAuthority(IOT_AUTHORITY)
+                        .requestMatchers(HttpMethod.PATCH, "/api/comandos/*/executado", "/api/comandos/*/falhou").hasAuthority(IOT_AUTHORITY)
                         .requestMatchers(HttpMethod.POST, "/api/comandos").authenticated()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll());
