@@ -22,7 +22,11 @@ public class ServicoDadosSensor {
     private final ServicoEsp32 servicoEsp32;
 
     public DadosSensor salvarDados(DadosSensor dadosSensor) {
+
+        dadosSensor.setId(null);
+        dadosSensor.setEsp32Id(null);
         dadosSensor.setDataRegistro(LocalDateTime.now());
+
         return repositorioDadosSensor.save(dadosSensor);
     }
     // Recebe uma leitura vinculada ao ESP32
