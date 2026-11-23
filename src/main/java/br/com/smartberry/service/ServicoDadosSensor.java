@@ -66,6 +66,10 @@ public class ServicoDadosSensor {
         leitura.setEsp32Id(dispositivo.getId());
         leitura.setTemperatura(temperatura);
         leitura.setUmidade(umidade);
+        leitura.setIrrigacaoLigada(entrada.getIrrigacaoLigada());
+        leitura.setVentilacaoLigada(entrada.getVentilacaoLigada());
+        leitura.setIrrigacaoAutomatica(entrada.getIrrigacaoAutomatica());
+        leitura.setVentilacaoAutomatica(entrada.getVentilacaoAutomatica());
         leitura.setDataRegistro(LocalDateTime.now());
 
         return repositorioDadosSensor.save(leitura);

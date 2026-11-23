@@ -116,6 +116,12 @@ public class ServicoMonitoramento {
         return agruparLeituras(leituras, false);
     }
 
+    public List<PontoGrafico> consultarGraficoHoje(String esp32Id) {
+        LocalDateTime agora = LocalDateTime.now();
+        return agruparLeituras(consultarPeriodo(esp32Id,
+                agora.toLocalDate().atStartOfDay(), agora), false);
+    }
+
     // Histórico agrupado por dia
     public List<PontoGrafico> consultarHistorico(
             String esp32Id,

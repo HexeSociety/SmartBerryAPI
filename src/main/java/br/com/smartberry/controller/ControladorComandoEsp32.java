@@ -1,6 +1,7 @@
 package br.com.smartberry.controller;
 
 import br.com.smartberry.model.ComandoEsp32;
+import br.com.smartberry.model.StatusComando;
 import br.com.smartberry.service.ServicoComandoEsp32;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,28 @@ public class ControladorComandoEsp32 {
     @GetMapping("/pendentes")
     public ResponseEntity<List<ComandoEsp32>> listarPendentes() {
         return ResponseEntity.ok(servicoComandoEsp32.listarPendentes());
+    }
+
+    @GetMapping("/esp32/{esp32Id}/proximo")
+    public ResponseEntity<ComandoEsp32> proximo(@PathVariable String esp32Id) {
+        return servicoComandoEsp32.proximo(esp32Id).map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @GetMapping("/{id}")
+    public ComandoEsp32 buscar(@PathVariable String id) {
+        return servicoComandoEsp32.buscar(id);
+    }
+
+    @GetMapping("/esp32/{esp32Id}/historico-irrigacao")
+    public List<ComandoEsp32> historicoIrrigacao(
+            @PathVariable String esp32Id, @RequestParam int dias) {
+        return servicoComandoEsp32.historicoIrrigacao(esp32Id, dias);
+    }
+
+    @PatchMapping("/{id}/rejeitado")
+    public ComandoEsp32 rejeitar(@PathVariable String id) {
+        return servicoComandoEsp32.concluir(id, StatusComando.REJEITADO);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

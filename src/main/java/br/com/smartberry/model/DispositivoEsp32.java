@@ -15,6 +15,9 @@ public class DispositivoEsp32 {
     private String nome;
     private String estufaId;
 
+    private boolean irrigacaoDiaria;
+    private boolean ventilacaoDiaria;
+
     private boolean ativo;
     private boolean excluido;
 }

@@ -5,9 +5,21 @@ import br.com.smartberry.model.StatusComando;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import br.com.smartberry.model.TipoComando;
 
 @Repository
 public interface RepositorioComandoEsp32 extends MongoRepository<ComandoEsp32, String> {
     List<ComandoEsp32> findByStatus(StatusComando status);
+    Optional<ComandoEsp32> findFirstByEsp32IdAndStatusOrderByDataCriacaoAscIdAsc(
+            String esp32Id, StatusComando status);
+    boolean existsByEsp32IdAndTipoInAndStatusAndProgramadoParaIsNullAndDataCriacaoGreaterThanEqual(
+            String esp32Id, List<TipoComando> tipos, StatusComando status, LocalDateTime limite);
+    boolean existsByEsp32IdAndTipoAndStatusInAndDataCriacaoGreaterThanEqual(
+            String esp32Id, TipoComando tipo, List<StatusComando> status, LocalDateTime limite);
+    List<ComandoEsp32> findByEsp32IdAndTipoAndStatusAndProgramadoParaIsNullAndDataConclusaoGreaterThanEqualOrderByDataConclusaoDesc(
+            String esp32Id, TipoComando tipo, StatusComando status,
+            LocalDateTime inicio);
 }

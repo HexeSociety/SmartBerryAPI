@@ -623,7 +623,7 @@ A implementação atual contempla o recebimento de dados dos sensores, a criaç�
 
 Alguns pontos permanecem como evolução da solução:
 
-- **Autenticação e autorização:** integração com Firebase Authentication para validação de tokens de acesso.
+- **Autenticação e autorização:** evoluir o acesso por chave compartilhada do MVP para credenciais individuais.
 - **Expiração de comandos:** implementação de uma regra para evitar que comandos antigos permaneçam disponíveis indefinidamente.
 - **Testes automatizados:** ampliação da cobertura para contemplar os novos comportamentos, incluindo a confirmação de execução e os cenários de erro.
 - **Evolução do monitoramento:** ampliação dos recursos de consulta e utilização histórica das leituras ambientais.
@@ -799,3 +799,47 @@ O backend é organizado para permitir evolução incremental, separação de res
 ---
 
 **SmartBerry 360 — Tecnologia e automação para uma estufa inteligente.** 🍓
+
+## Integração local com Android e ESP32
+
+Com Java 21 e MongoDB disponíveis, inicie a API com os comandos abaixo.
+
+```bash
+export SMARTBERRY_API_KEY=uma-chave-local-da-apresentacao
+export MONGODB_URI=mongodb://localhost:27017/smartberry
+bash mvnw spring-boot:run
+```
+
+O ESP32 se cadastra ao acessar `PUT /api/esp32/registro/{codigo}`. O código deriva do endereço MAC de fábrica e a API retorna o mesmo ID em novas tentativas. O Android consulta `GET /api/esp32/automatico` para encontrar a única placa ativa com leituras nos últimos 30 segundos. Se houver várias placas online, o app pede uma configuração específica. O cadastro manual em `POST /api/esp32` permanece disponível.
+
+Todos os endpoints `/api/**` recebem a chave no cabeçalho `X-SmartBerry-Key`. Os comandos novos incluem `esp32Id` no JSON, são consultados em `GET /api/comandos/esp32/{esp32Id}/proximo` e concluídos em `PATCH /api/comandos/{id}/executado` ou `/rejeitado`. A consulta entrega o comando pendente mais antigo do dispositivo e descarta comandos pendentes com mais de 30 segundos. O aplicativo consulta o resultado em `GET /api/comandos/{id}`. O endpoint legado de pendentes entrega os comandos cadastrados sem associação a uma placa.
+
+Na rede da apresentação, use o endereço do computador e a porta 8080 nos clientes. Mantenha a porta do MongoDB acessível apenas à API.
+
+
+### Compilar a API com MongoDB
+
+Abra `SmartBerryAPI/pom.xml` como projeto Maven no IntelliJ, selecione o JDK 21 e recarregue o projeto pelo painel Maven. O wrapper resolve o Spring Data MongoDB e as outras dependências. Na pasta `SmartBerryAPI`, valide com `./mvnw clean package` no Linux ou `mvnw.cmd clean package` no Windows.
+
+## Agendamentos de irrigação e ventilação
+
+Use `/api/esp32/{esp32Id}/agendamentos-irrigacao` ou `/api/esp32/{esp32Id}/agendamentos-ventilacao` com a chave da API.
+
+| Método | Sufixo | Operação |
+| --- | --- | --- |
+| POST | | Adicionar horário |
+| GET | | Listar horários |
+| PUT | `/{id}` | Editar horário pendente |
+| DELETE | `/{id}` | Excluir horário disponível para alteração |
+| GET | `/automatico` | Consultar o modo diário do equipamento |
+| PUT | `/automatico` | Alterar o modo diário com `{"ativo":true}` ou `{"ativo":false}` |
+
+Exemplo de horário diário, com horário de São Paulo e duração de 1 a 300 segundos:
+
+```json
+{"horario":"2026-11-24T08:30:00","duracaoSegundos":120,"diario":true}
+```
+
+Com `diario` omitido ou igual a `false`, o horário é pontual. A API guarda os agendamentos e os modos no MongoDB. O processador roda a cada segundo e cria um comando com identidade fixa por ocorrência. Após a janela de 30 segundos, as ocorrências diárias avançam para o próximo horário local futuro. Um comando manual pendente tem prioridade no mesmo equipamento. Uma confirmação marca o acionamento e o desligamento temporizado ocorre no firmware.
+
+Com o JAR empacotado e JDK 21, Python 3, `mongod` e `mongosh` disponíveis, rode `python3 src/test/integration/agendamentos_irrigacao.py`. O teste usa duas instâncias da API e um MongoDB temporário.

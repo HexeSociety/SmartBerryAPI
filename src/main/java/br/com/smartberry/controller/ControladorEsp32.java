@@ -30,6 +30,16 @@ public class ControladorEsp32 {
                 .body(dispositivo);
     }
 
+    @PutMapping("/registro/{codigo}")
+    public DispositivoEsp32 registrarAutomaticamente(@PathVariable String codigo) {
+        return servicoEsp32.registrarAutomaticamente(codigo);
+    }
+
+    @GetMapping("/automatico")
+    public DispositivoEsp32 selecionarAutomaticamente(@RequestParam(defaultValue = "false") boolean incluirOffline) {
+        return servicoEsp32.selecionarAutomaticamente(incluirOffline);
+    }
+
     // GET - Listar dispositivos
     @GetMapping
     public ResponseEntity<List<DispositivoEsp32>> listar() {
