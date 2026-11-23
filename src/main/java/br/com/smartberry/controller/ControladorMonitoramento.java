@@ -30,8 +30,10 @@ public class ControladorMonitoramento {
     @GetMapping("/{esp32Id}/grafico")
     public List<PontoGrafico> consultarGrafico(
             @PathVariable String esp32Id,
-            @RequestParam(defaultValue = "24") int horas
+            @RequestParam(defaultValue = "24") int horas,
+            @RequestParam(defaultValue = "false") boolean hoje
     ) {
+        if (hoje) return servicoMonitoramento.consultarGraficoHoje(esp32Id);
         return servicoMonitoramento.consultarGrafico(
                 esp32Id, horas
         );
