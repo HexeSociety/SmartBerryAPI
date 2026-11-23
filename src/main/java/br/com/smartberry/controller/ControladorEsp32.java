@@ -36,8 +36,8 @@ public class ControladorEsp32 {
     }
 
     @GetMapping("/automatico")
-    public DispositivoEsp32 selecionarAutomaticamente() {
-        return servicoEsp32.selecionarAutomaticamente();
+    public DispositivoEsp32 selecionarAutomaticamente(@RequestParam(defaultValue = "false") boolean incluirOffline) {
+        return servicoEsp32.selecionarAutomaticamente(incluirOffline);
     }
 
     // GET - Listar dispositivos

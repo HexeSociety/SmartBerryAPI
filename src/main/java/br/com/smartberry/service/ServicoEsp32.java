@@ -57,10 +57,10 @@ public class ServicoEsp32 {
         return dispositivo;
     }
 
-    public DispositivoEsp32 selecionarAutomaticamente() {
+    public DispositivoEsp32 selecionarAutomaticamente(boolean incluirOffline) {
         LocalDateTime limite = LocalDateTime.now().minusSeconds(30);
-        List<DispositivoEsp32> online = listar().stream()
-                .filter(DispositivoEsp32::isAtivo)
+        List<DispositivoEsp32> ativos = listar().stream().filter(DispositivoEsp32::isAtivo).toList();
+        List<DispositivoEsp32> online = ativos.stream()
                 .filter(dispositivo -> repositorioDadosSensor
                         .findFirstByEsp32IdOrderByDataRegistroDesc(dispositivo.getId())
                         .map(DadosSensor::getDataRegistro)
@@ -68,6 +68,7 @@ public class ServicoEsp32 {
                 .limit(2)
                 .toList();
         if (online.isEmpty()) {
+            if (incluirOffline && ativos.size() == 1) return ativos.getFirst();
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Aguardando leituras do ESP32");
         }
         if (online.size() > 1) {

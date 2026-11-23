@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Data
@@ -17,4 +18,7 @@ public class ComandoEsp32 {
     private Integer valor;
     private StatusComando status;
     private LocalDateTime dataCriacao;
+    private Instant programadoPara;
+    private Instant expiraEm;
+    private boolean agendamentoDiario;
 }
