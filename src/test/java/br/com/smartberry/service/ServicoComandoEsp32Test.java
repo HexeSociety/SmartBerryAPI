@@ -210,12 +210,11 @@ class ServicoComandoEsp32Test {
         comando.setStatus(StatusComando.EXECUTADO);
 
         when(repositorioComandoEsp32.findById("cmd123")).thenReturn(Optional.of(comando));
-        when(repositorioComandoEsp32.save(any(ComandoEsp32.class)))
-                .thenAnswer(invocacao -> invocacao.getArgument(0));
 
         ComandoEsp32 resultado = servicoComandoEsp32.marcarComoExecutado("cmd123");
 
         assertEquals(StatusComando.EXECUTADO, resultado.getStatus());
+        verify(repositorioComandoEsp32, never()).save(any());
     }
 
     @Test

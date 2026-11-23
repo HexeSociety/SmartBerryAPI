@@ -11,7 +11,9 @@ import java.time.LocalDateTime;
 public class ComandoEsp32 {
     @Id
     private String id;
+    private String esp32Id;
     private TipoComando tipo;
+    private LocalDateTime dataConclusao;
     private Integer valor;
     private StatusComando status;
     private LocalDateTime dataCriacao;
