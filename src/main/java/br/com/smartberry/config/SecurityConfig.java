@@ -16,7 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http,
+    public SecurityFilterChain cadeiaDeSeguranca(HttpSecurity http,
             @Value("${SMARTBERRY_API_KEY:}") String key) throws Exception {
         byte[] expected = key.getBytes(StandardCharsets.UTF_8);
         var filter = new OncePerRequestFilter() {
